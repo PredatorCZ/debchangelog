@@ -1,0 +1,7 @@
+sample-package (1.0.0) UNRELEASED; urgency=medium
+
+  [ John Dove ]
+  * Entry 1
+  * Entry 2
+
+ -- John Dove <john.dove@softpp.net>  Tue, 16 Jun 2015 23:56:16 +0200

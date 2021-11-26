@@ -1,0 +1,10 @@
+sample-package (1.1.0) UNRELEASED; urgency=medium
+
+  [ John Dove ]
+  * Entry 3
+
+  [ Jane Doo ]
+  * Entry 1
+    Continued entry
+
+ -- Jane Doo <jane.doo@omegamart.us>  Wed, 17 Jun 2015 10:56:16 +0200

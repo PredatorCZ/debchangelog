@@ -1,0 +1,14 @@
+sample-package (1.1.0) UNRELEASED; urgency=critical, binary-only=yes
+
+  [ John Dove ]
+  * Entry 1
+  * Entry 2
+  * Entry 3
+    Continued entry
+    Continued entry wrong format
+
+  [ Jane Doo ]
+  * Entry 1
+    Continued entry
+
+ -- Jane Doo <jane.doo@omegamart.us>  Wed, 17 Jun 2015 10:56:16 +0200
