@@ -1,7 +1,32 @@
+#!usr/bin/env python3
+# MIT License
+#
+# Copyright (c) 2021 Lukas Cone
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+from collections import OrderedDict
 from enum import Enum
 import re
 from email.utils import format_datetime, parsedate_to_datetime
-import hashlib
+from zlib import adler32
+
 
 class Urgency(Enum):
     LOW = 0
@@ -16,6 +41,7 @@ class Urgency(Enum):
     def __gt__(self, other):
         return self.value > other.value
 
+
 class ChangelogBlock(object):
     head_regex = re.compile('([\S]+)\s+\(([\S]+)\)\s+(.*)\;\s+(.*)')
     foot_regex = re.compile('--(.*)\<(\S+)\>\s+(.*)')
@@ -23,7 +49,7 @@ class ChangelogBlock(object):
 
     def __init__(self):
         self.flags = {}
-        self.entries = {}
+        self.entries = OrderedDict()
         self.package_name = None
         self.version = None
         self.distros = None
@@ -40,7 +66,8 @@ class ChangelogBlock(object):
         for k, w in self.flags.items():
             flags = flags + '{}={}, '.format(k, w)
         flags = flags.strip(', ')
-        retval = '{} ({}) {}; {}\n'.format(self.package_name, self.version, distros.strip(), flags.strip())
+        retval = '{} ({}) {}; {}\n'.format(self.package_name,
+                                           self.version, distros.strip(), flags.strip())
 
         def parse_entry(entry):
             if entry.startswith('\n'):
@@ -49,8 +76,11 @@ class ChangelogBlock(object):
                 return '  * ' + entry + '\n'
 
         if len(self.entries) == 1:
-            item = list(self.entries.values())[0]
+            author, item = list(self.entries.items())[0]
             retval = retval + '\n'
+
+            if author != self.last_author:
+                retval = retval + '  [ {} ]\n'.format(author)
             for e in item:
                 retval = retval + parse_entry(e)
         else:
@@ -59,7 +89,9 @@ class ChangelogBlock(object):
                 for e in entries:
                     retval = retval + parse_entry(e)
 
-        retval = retval + '\n -- {} <{}>  {}\n'.format(self.last_author, self.contact, format_datetime(self.date))
+        retval = retval + \
+            '\n -- {} <{}>  {}\n'.format(self.last_author,
+                                         self.contact, format_datetime(self.date))
 
         return retval
 
@@ -67,12 +99,10 @@ class ChangelogBlock(object):
         return self.content_hash == other.content_hash
 
     def update_hash(self):
-        hash_obj = hashlib.blake2b(bytes(str(self), encoding='utf-8'), digest_size=8)
-        hash_obj = int.from_bytes(hash_obj.digest(), 'little')
-        self.content_hash = hash_obj
+        self.content_hash = adler32(bytes(str(self), encoding='utf-8'))
 
     def parse(self, stream):
-        headline :str = stream.readline()
+        headline = stream.readline()
 
         if not headline:
             return False
@@ -86,7 +116,7 @@ class ChangelogBlock(object):
         for f in flags:
             kw = f.split('=')
             key = kw[0].strip().lower()
-            
+
             if key == 'urgency':
                 self.flags[key] = Urgency[kw[1].strip().upper()]
             else:
@@ -97,18 +127,22 @@ class ChangelogBlock(object):
         end_marker = False
 
         while True:
-            line :str = stream.readline().strip()
+            line = stream.readline().strip()
 
             if end_marker:
                 if len(line) > 0:
-                    raise RuntimeError('Invalid format! Expected empty line between version entries.')
+                    raise RuntimeError(
+                        'Invalid format! Expected empty line between version entries.')
                 break
 
             if len(line) == 0:
                 continue
             elif line.startswith('[') and line.endswith(']'):
                 if author_name and len(entries) > 0:
-                    self.entries[author_name] = entries
+                    if author_name in self.entries:
+                        self.entries[author_name] = self.entries[author_name] + entries
+                    else:
+                        self.entries[author_name] = entries
                     entries = []
                 author_name = line.strip('[] \t')
             elif line.startswith('*'):
@@ -121,7 +155,10 @@ class ChangelogBlock(object):
                 if not author_name:
                     author_name = self.last_author
                 if len(entries) > 0:
-                    self.entries[author_name] = entries
+                    if author_name in self.entries:
+                        self.entries[author_name] = self.entries[author_name] + entries
+                    else:
+                        self.entries[author_name] = entries
                 end_marker = True
             else:
                 entries.append('\n' + line.strip())
@@ -157,6 +194,15 @@ class ChangelogBlock(object):
 
         return (retval, retval_mask)
 
+    def version_from_list(self, list, mask):
+        num_numbers = mask
+        new_version = ''
+
+        for nv in range(num_numbers):
+            new_version = new_version + str(list[nv]) + '.'
+        new_version = new_version.rstrip('.')
+        self.version = new_version
+
     def merge_version(self, other):
         self_version, self_version_mask = self.parse_version()
         other_version, other_version_mask = other.parse_version()
@@ -166,14 +212,19 @@ class ChangelogBlock(object):
                 hi_version = self_version if self_version[v] > other_version[v] else other_version
                 self_version[v:] = hi_version[v:]
                 break
-        
-        num_numbers = max(self_version_mask, other_version_mask)
-        new_version = ''
 
-        for nv in range(num_numbers):
-            new_version = new_version + str(self_version[nv]) + '.'
-        new_version = new_version.rstrip('.')
-        self.version = new_version
+        self.version_from_list(self_version, max(
+            self_version_mask, other_version_mask))
+
+    def compare_version(self, other):
+        self_version, _ = self.parse_version()
+        other_version, _ = other.parse_version()
+
+        for v in range(4):
+            if self_version[v] != other_version[v]:
+                return -1 if self_version[v] < other_version[v] else 1
+        return 0
+
 
 class Changelog:
     def __init__(self):
@@ -195,38 +246,73 @@ class Changelog:
             diff_index = i
             break
 
-
         if diff_index >= 0:
-            # case 0: both are last and unreleased
-            self_block :ChangelogBlock = self.blocks[i]
-            other_block :ChangelogBlock = other.blocks[i]
-
-            if num_blocks == diff_index + 1 and len(self_block.distros) == 1 and self_block.distros[0] == 'UNRELEASED' and len(other_block.distros) == 1 and other_block.distros[0] == 'UNRELEASED':
+            self_block = self.blocks[i]
+            other_block = other.blocks[i]
+            # case 0: both are last and unreleased, merge them
+            if num_blocks == diff_index + 1 and len(self_block.distros) == 1 \
+                    and self_block.distros[0] == 'UNRELEASED' and len(other_block.distros) == 1 \
+                    and other_block.distros[0] == 'UNRELEASED':
                 if self_block.version != other_block.version:
                     self_block.merge_version(other_block)
-                    
-                    for author, entries in other_block.entries.items():
-                        if not author in self_block.entries:
-                             self_block.entries[author] = entries
-                        else:
-                            self_entries :list = self_block.entries[author]
-                            for entry in entries:
-                                if not entry in self_entries:
-                                    self_entries.append(entry)
 
-                    self_block.update_flags(other_block)
+                for author, entries in other_block.entries.items():
+                    if not author in self_block.entries:
+                        self_block.entries[author] = entries
+                    else:
+                        self_entries = self_block.entries[author]
+                        for entry in entries:
+                            if not entry in self_entries:
+                                self_entries.append(entry)
 
-                    if other_block.date > self_block.date:
-                        self_block.date = other_block.date
-                        self_block.contact = other_block.contact
-                        self_block.last_author = other_block.last_author
+                self_block.update_flags(other_block)
 
-                    # TODO: what to do when package name changes?
+                if other_block.date > self_block.date:
+                    self_block.date = other_block.date
+                    self_block.contact = other_block.contact
+                    self_block.last_author = other_block.last_author
 
-                    print(self_block)
-            self_block.update_hash()
+                # TODO: what to do when package name changes?
+                self_block.update_hash()
 
+            # case 1: general conflict, append and subtract
+            elif diff_index + 1 == len(other.blocks):
+                self_slice = self.blocks[diff_index:]
+                other_block = other.blocks[diff_index]
+                last_self_block = self_slice[len(self_slice) - 1]
+                self_version, _ = last_self_block.parse_version()
+                version_compare_result = last_self_block.compare_version(other_block)
 
+                if version_compare_result >= 0:
+                    delta = [0, 0, 0, 0]
+
+                    if diff_index > 0:
+                        less_version, _ = other.blocks[diff_index -1].parse_version()
+                        current_version, _ = other.blocks[diff_index].parse_version()
+
+                        for v in range(4):
+                            delta[v] = current_version[v] - less_version[v]
+
+                        current_version, current_mask = other_block.parse_version()
+
+                        for m in range(4):
+                            current_version[m] = self_version[m] + delta[m]
+
+                        other_block.version_from_list(
+                            current_version, current_mask)
+                    else:
+                        raise RuntimeError('Cannot determine version delta')
+
+                for s in self_slice:
+                    for author, entries in s.entries.items():
+                        if author in other_block.entries:
+                            for e in entries:
+                                if e in other_block.entries[author]:
+                                    other_block.entries[author].remove(e)
+                other_block.update_hash()
+                self.blocks.append(other_block)
+            else:
+                raise RuntimeError('Undefined conflict')
 
     def from_file(self, file_name):
         with open(file_name, 'r') as file:
@@ -236,60 +322,10 @@ class Changelog:
                 retval = data.parse(file)
                 if retval:
                     self.blocks.insert(0, data)
-   
 
-ch = Changelog()
-ch.from_file('changelogexample')
-
-ch1 = Changelog()
-ch1.from_file('ch')
-#ch.merge(ch1)
-#print(ch.blocks[0])
-#print(ch == ch1)
-
-
-def test_double_unresolved():
-    ch = Changelog()
-    ch.from_file('000_double_unreleased')
-
-    ch1 = Changelog()
-    ch1.from_file('001_double_unreleased')
-
-    ch.merge(ch1)
-
-    result = Changelog()
-    result.from_file('002_double_unreleased')
-
-    assert(result == ch)
-
-def test_double_unresolved_flags():
-    ch = Changelog()
-    ch.from_file('010_double_unreleased_flags')
-
-    ch1 = Changelog()
-    ch1.from_file('011_double_unreleased_flags')
-
-    ch.merge(ch1)
-
-    result = Changelog()
-    result.from_file('012_double_unreleased_flags')
-
-    assert(result == ch)
-
-def test_double_unresolved_empty():
-    ch = Changelog()
-    ch.from_file('020_double_unreleased_empty')
-
-    ch1 = Changelog()
-    ch1.from_file('021_double_unreleased_empty')
-
-    ch.merge(ch1)
-
-    result = Changelog()
-    result.from_file('022_double_unreleased_empty')
-
-    assert(result == ch)
-
-test_double_unresolved()
-test_double_unresolved_flags()
-test_double_unresolved_empty()
+    def to_file(self, file_name):
+        with open(file_name, 'w') as file:
+            for b in reversed(self.blocks[1:]):
+                file.write(str(b))
+                file.write('\n')
+            file.write(str(self.blocks[0]))

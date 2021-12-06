@@ -1,0 +1,35 @@
+<<<<<<< test/064_fallback
+sample-package (1.1.0) UNRELEASED; urgency=medium
+=======
+sample-package (1.2.0) UNRELEASED; urgency=medium
+
+  [ John Dove ]
+  * Entry 3
+  * Entry 4
+
+  [ Jane Doo ]
+  * More entries
+
+ -- Jane Doo <jane.doo@omegamart.us>  Wed, 17 Jun 2015 10:56:16 +0200
+
+sample-package (1.1.0) released; urgency=medium
+>>>>>>> test/062_fallback
+
+  [ John Dove ]
+  * Entry 1
+  * Entry 2
+  * Entry 3
+  * Entry 4
+
+  [ Jane Doo ]
+  * Entry 1
+    Continued entry
+  * More entries
+
+ -- Jane Doo <jane.doo@omegamart.us>  Wed, 17 Jun 2015 10:56:16 +0200
+
+sample-package (1.0.0) released; urgency=medium
+
+  * Initial release
+
+ -- John Dove <john.dove@softpp.net>  Mon, 15 Jun 2015 23:56:16 +0200
