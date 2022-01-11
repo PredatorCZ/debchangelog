@@ -45,7 +45,7 @@ except:
     # fallback to default git merge
     status = run(
         args=['git', 'merge-file', args.current, args.base, args.new])
-    if status.returncode > 0:
+    if status.returncode > 1:
         raise CalledProcessError(status.returncode, status.args, status.stdout,
                                  status.stderr)
     exit(1)

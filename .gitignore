@@ -1,6 +1,6 @@
 __pycache__
 build
 *.egg-info
+.eggs
 dist
-.cache
-test/064_fallback
+.*_cache

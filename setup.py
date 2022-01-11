@@ -6,6 +6,5 @@ setup(
     description='Merge conflict resolver for debian changelogs',
     author='Lukas Cone',
     url='https://github.com/PredatorCZ/debchangelog',
-    scripts=['dchmerge.py', 'deb.py'],
-    tests_require=['pytest-3'],
+    scripts=['dchmerge.py', 'deb.py']
 )

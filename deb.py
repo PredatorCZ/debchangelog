@@ -43,7 +43,7 @@ class Urgency(Enum):
 
 
 class ChangelogBlock(object):
-    head_regex = re.compile('([\S]+)\s+\(([\S]+)\)\s+(.*)\;\s+(.*)')
+    head_regex = re.compile('(\S+)\s+\((\S+)\)\s+(.*)\;\s+(.*)')
     foot_regex = re.compile('--(.*)\<(\S+)\>\s+(.*)')
     version_semantic_regex = re.compile('(\d+)\.?(\d+)?\.?(\d+)?\.?(\d+)?')
 
@@ -195,26 +195,20 @@ class ChangelogBlock(object):
         return (retval, retval_mask)
 
     def version_from_list(self, list, mask):
-        num_numbers = mask
-        new_version = ''
-
-        for nv in range(num_numbers):
-            new_version = new_version + str(list[nv]) + '.'
-        new_version = new_version.rstrip('.')
-        self.version = new_version
+        self.version = ".".join(map(str, list[:mask]))
 
     def merge_version(self, other):
         self_version, self_version_mask = self.parse_version()
         other_version, other_version_mask = other.parse_version()
+        versions_mask = max(self_version_mask, other_version_mask)
 
-        for v in range(4):
+        for v in range(versions_mask):
             if self_version[v] != other_version[v]:
                 hi_version = self_version if self_version[v] > other_version[v] else other_version
                 self_version[v:] = hi_version[v:]
                 break
 
-        self.version_from_list(self_version, max(
-            self_version_mask, other_version_mask))
+        self.version_from_list(self_version, versions_mask)
 
     def compare_version(self, other):
         self_version, _ = self.parse_version()
