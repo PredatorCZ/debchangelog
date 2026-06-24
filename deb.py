@@ -289,11 +289,16 @@ class Changelog:
 
                         current_version, current_mask = other_block.parse_version()
 
+                        new_version = list(self_version)
                         for m in range(4):
-                            current_version[m] = self_version[m] + delta[m]
+                            if delta[m] != 0:
+                                new_version[m] = self_version[m] + delta[m]
+                                for n in range(m + 1, 4):
+                                    new_version[n] = 0
+                                break
 
                         other_block.version_from_list(
-                            current_version, current_mask)
+                            new_version, current_mask)
                     else:
                         raise RuntimeError('Cannot determine version delta')
 
