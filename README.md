@@ -6,6 +6,14 @@ Currently only pure semantic versions are supported (`MAJOR[.MINOR[.PATCH[.TWEAK
 
 If resolver fails, it'll use default git merger as fallback.
 
+## Running tests
+
+Run the test suite with [pytest](https://pytest.org):
+
+```sh
+python3 -m pytest
+```
+
 ## Installation
 
 Run `python3 setup.py install` command to install locally.
