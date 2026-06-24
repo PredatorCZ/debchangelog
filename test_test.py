@@ -4,7 +4,6 @@ import os
 from filecmp import cmp
 from shutil import copyfile
 
-
 def assert_changelogs(name):
     ch = Changelog()
     ch.from_file('test/{}_0'.format(name))
@@ -22,22 +21,17 @@ def assert_changelogs(name):
 def test_unreleased():
     assert_changelogs('unreleased')
 
-
 def test_flags():
     assert_changelogs('flags')
-
 
 def test_empty():
     assert_changelogs('empty')
 
-
 def test_release():
     assert_changelogs('release')
 
-
 def test_multiple_release_():
     assert_changelogs('multiple_release')
-
 
 def test_version():
     assert_changelogs('version')
@@ -45,6 +39,10 @@ def test_version():
 def test_fallback():
     os.makedirs('build/test', exist_ok=True)
     copyfile('test/fallback_1', 'build/test/fallback_1')
-    status = run(cwd=os.getcwd(), args=['python3', 'dchmerge.py', 'test/fallback_0', 'build/test/fallback_1', 'test/fallback_2'])
+    env = dict(os.environ,
+               GIT_CONFIG_COUNT='1',
+               GIT_CONFIG_KEY_0='merge.conflictStyle',
+               GIT_CONFIG_VALUE_0='merge')
+    status = run(cwd=os.getcwd(), env=env, args=['python3', 'dchmerge.py', 'test/fallback_0', 'build/test/fallback_1', 'test/fallback_2'])
     assert(status.returncode == 1)
     assert(cmp('build/test/fallback_1', 'test/fallback_result'))
