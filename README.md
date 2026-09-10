@@ -16,7 +16,13 @@ python3 -m pytest
 
 ## Installation
 
-Run `python3 setup.py install` command to install locally.
+Install locally with [pipx](https://pipx.pypa.io) (recommended, works on externally-managed systems like Debian):
+
+```sh
+pipx install .
+```
+
+On older systems you can also use `python3 -m pip install .` instead.
 
 ### Setup git for single repo
 
