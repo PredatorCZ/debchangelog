@@ -43,9 +43,9 @@ class Urgency(Enum):
 
 
 class ChangelogBlock(object):
-    head_regex = re.compile('(\S+)\s+\((\S+)\)\s+(.*)\;\s+(.*)')
-    foot_regex = re.compile('--(.*)\<(\S+)\>\s+(.*)')
-    version_semantic_regex = re.compile('(\d+)\.?(\d+)?\.?(\d+)?\.?(\d+)?')
+    head_regex = re.compile(r'(\S+)\s+\((\S+)\)\s+(.*)\;\s+(.*)')
+    foot_regex = re.compile(r'--(.*)\<(\S+)\>\s+(.*)')
+    version_semantic_regex = re.compile(r'(\d+)\.?(\d+)?\.?(\d+)?\.?(\d+)?')
 
     def __init__(self):
         self.flags = {}
